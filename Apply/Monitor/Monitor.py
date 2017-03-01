@@ -1,0 +1,178 @@
+import time
+import threading
+import socket
+import MyEnum
+import MyParser
+import random
+import sys
+import os
+
+DEBUG = False
+
+IP_SERVER  = 'localhost'
+PORT_NODE = 9407
+DELTA_TIME = 2
+SAMPLE_ON_CIRCLE = 10
+bStartMon = False
+bStop = False
+session = -1
+
+################################################################################
+#read from file config to get information
+def readConfig():
+    global myName
+    myName = 'Mon_' + sys.argv[1]
+    try:
+        with open('config.cfg', 'r') as f:
+            myName = f.readline().replace('\n','')
+    except IOError:
+        pass
+
+#create message to send to server
+def createMessage(strRoot = '', arg = {}):
+    strResult = str(strRoot)
+    for k, v in arg.items():
+        strResult = strResult + ' ' + str(k) + ' ' + str(v)
+
+    return strResult
+
+#server send data to update argument
+def updateArg(arg, sock: socket.socket):
+    global h1, h2, h3, eps, bound, session
+    global bStartMon, V
+
+    if (arg.h1 != None):
+        h1 = arg.h1[0]
+        h2 = arg.h2[0]
+        h3 = arg.h3[0]
+        session = arg.session[0]
+        bound = arg.bound[0]
+
+    if (arg.eps != None):
+        eps = arg.eps[0]
+
+    #server updates new coefficient so we have to send new value to server
+    if (arg.h1 != None):
+        bStartMon = False
+        time.sleep(DELTA_TIME + 1)
+        V = h1 * dtCPU + h2 * dtRAM + h3 * dtMEM
+        bStartMon = True
+        sendCurrentvalue(sock, bound)
+
+# send current value to server
+def sendCurrentvalue(sock:socket.socket, bound:int):
+    global V
+    global eps
+
+    V = h1 * dtCPU + h2 * dtRAM + h3 * dtMEM
+
+    if (V > bound):
+        dataSend = createMessage('', {'-type': MyEnum.MonNode.NODE_SET_DATA.value})
+        dataSend = createMessage(dataSend, {'-ses': session})
+        dataSend = createMessage(dataSend, {'-value': V})
+        sock.sendall(bytes(dataSend.encode()))
+        os.system('clear')
+        print(myName + ': ' + str(V) + '___%d' %(eps))
+
+################################################################################
+#communication with server
+def workWithServer(sock : socket.socket):
+    global V, dtCPU, dtRAM, dtMEM, bStop
+
+    readConfig()
+
+    try:
+        # send name
+        dataSend = createMessage('', {'-type': MyEnum.MonNode.NODE_SET_NAME.value})
+        dataSend = createMessage(dataSend, {'-name': myName})
+        sock.sendall(bytes(dataSend.encode('utf-8')))
+
+        #listen command from server
+        while 1:
+            try:
+                dataRecv = sock.recv(1024).decode()
+                if (dataRecv == ''):
+                    return
+                arg = parser.parse_args(dataRecv.lstrip().split(' '))
+                type = arg.type[0]
+            except socket.error:
+                return
+            except Exception:
+                continue
+            #server update argument
+            if type == MyEnum.MonNode.SERVER_SET_ARG.value:
+                updateArg(arg, sock)
+                continue
+            #server need data from this node
+            if type == MyEnum.MonNode.SERVER_GET_DATA.value:
+                bound = arg.bound[0]
+                sendCurrentvalue(sock, bound)
+                continue
+    except socket.error:
+        pass
+
+    finally:
+        bStop = True
+        sock.close()
+
+#monitor data
+def monData(sock: socket.socket):
+    STEP = 2
+    global V, dtCPU, dtRAM, dtMEM
+    V = 0
+    dtCPU = 0
+    dtRAM = 0
+    dtMEM = 0
+    tmpCPU = random.randint(30, 40)
+    tmpRAM = random.randint(30, 40)
+    tmpMEM = random.randint(30, 40)
+
+    if DEBUG:
+        return
+
+    while (not bStop):
+        tmpCPU = tmpCPU + random.randint(-2, 2) * STEP
+        tmpRAM = tmpRAM + random.randint(-2, 2) * STEP
+        tmpMEM = tmpMEM + random.randint(-2, 2) * STEP
+        if (bStartMon == False):
+            dtCPU = tmpCPU
+            dtRAM = tmpRAM
+            dtMEM = tmpMEM
+        else:
+            tmpV = h1 * tmpCPU + h2 * tmpRAM + h3 * tmpMEM
+            if (abs(tmpV - V) > eps):
+                dtCPU = tmpCPU
+                dtRAM = tmpRAM
+                dtMEM = tmpMEM
+
+                try:
+                    sendCurrentvalue(sock, -1)
+                except socket.error:
+                    return
+
+
+        time.sleep(DELTA_TIME)
+################################################################################
+################################################################################
+#init connection
+readConfig()
+try:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_address = (IP_SERVER, PORT_NODE)
+    sock.connect(server_address)
+
+    #init parser
+    parser = MyParser.createParser()
+
+    #init thread
+    thMon = threading.Thread(target=monData, args=(sock,))
+    thWork = threading.Thread(target=workWithServer, args=(sock,))
+
+    thMon.start()
+    thWork.start()
+
+    #wait for all thread running
+    thWork.join()
+    thMon.join()
+except socket.error:
+    pass
