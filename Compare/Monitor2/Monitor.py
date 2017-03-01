@@ -1,8 +1,8 @@
 import time
 import threading
 import socket
-import MyEnum
-import MyParser
+import Common.MyEnum as MyEnum
+import Common.MyParser as MyParser
 import random
 import sys
 import os
@@ -23,7 +23,13 @@ highBound = -1
 #read from file config to get information
 def readConfig():
     global myName
-    myName = 'Mon_' + sys.argv[1]
+    myName = 'Mon_'
+    try:
+        addName = sys.argv[1]
+        myName = myName + addName
+    except Exception:
+        pass
+
     try:
         with open('config.cfg', 'r') as f:
             myName = f.readline().replace('\n','')

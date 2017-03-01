@@ -1,9 +1,9 @@
 import json
 import threading
 import socket
-import MyEnum
 import time
-import MyParser
+import Common.MyEnum as MyEnum
+import Common.MyParser as MyParser
 import os
 import random
 
@@ -207,7 +207,7 @@ def printTop():
 
     try:
         userSock.sendall(data.encode())
-    except socket.error:
+    except Exception:
         return
 
 ################################################################################

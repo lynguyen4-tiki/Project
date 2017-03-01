@@ -1,9 +1,9 @@
 import json
 import threading
 import socket
-import MyEnum
+import Common.MyEnum as MyEnum
+import Common.MyParser as MyParser
 import time
-import MyParser
 import os
 import random
 

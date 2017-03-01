@@ -1,5 +1,5 @@
-import MyEnum
-import MyParser
+import Common.MyEnum as MyEnum
+import Common.MyParser as MyParser
 import socket
 import json
 import threading
