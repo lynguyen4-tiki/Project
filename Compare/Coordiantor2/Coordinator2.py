@@ -1,8 +1,12 @@
 import json
 import threading
 import socket
-import Common.MyEnum as MyEnum
-import Common.MyParser as MyParser
+try:
+    import Common.MyEnum as MyEnum
+    import Common.MyParser as MyParser
+except ImportError:
+    import MyEnum
+    import MyParser
 import time
 import os
 import random
@@ -110,16 +114,28 @@ def findNodeInTop(strname : str):
     lockTop.release()
     return iRet
 
-def forceGetData(bound:int):
+def sendDataToAll(data:str):
     global lockLst
-    data = createMessage('', {'-type':MyEnum.MonNode.SERVER_GET_DATA.value})
-    data = createMessage(data, {'-bound':bound})
+    lockLst.acquire()
     for s in lstSock:
         try:
             s.sendall(bytes(data.encode()))
             addNetworkOut(len(data))
         except socket.error:
             pass
+    lockLst.release()
+
+def forceGetData(bound:int):
+    global lockLst
+    data = createMessage('', {'-type':MyEnum.MonNode.SERVER_GET_DATA.value})
+    data = createMessage(data, {'-bound':bound})
+    sendDataToAll(data)
+
+def appendToTop(value = 0, sock = None, name = ''):
+    global topK, sockTop, nameTop
+    topK.append(value)
+    sockTop.append(sock)
+    nameTop.append(name)
 
 def init():
     global serverForNode, serverForUser
@@ -127,9 +143,7 @@ def init():
     global parser
 
     for i in range(k):
-        topK.append(0)
-        sockTop.append(None)
-        nameTop.append("")
+        appendToTop()
 
     #init server to listen monitor node
     serverForNode = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -181,12 +195,7 @@ def sendAllSock(high:float):
     dataSend = createMessage(dataSend, {'-high':high})
     dataSend = createMessage(dataSend, {'-low': -1})
     dataSend = createMessage(dataSend, {'-type':MyEnum.MonNode.SERVER_SET_ARG.value})
-    for s in lstSock:
-        try:
-            s.sendall(bytes(dataSend.encode()))
-            addNetworkOut(len(dataSend))
-        except socket.error:
-            pass
+    sendDataToAll(dataSend)
 
 def sendBoundTo(pos : int):
     if (pos < 0):
@@ -364,22 +373,62 @@ def removeInTop(strName:str, s:socket.socket):
     pass
 
 def updateArg(arg):
-    global h1, h2, h3, band, k
+    global h1, h2, h3, k, lockTop, valueKP1, session
+    dataSend = ''
 
     if (arg.h1 != None):
         h1 = arg.h1[0]
+        dataSend = createMessage(dataSend, {'-h1' : h1})
 
     if (arg.h2 != None):
         h2 = arg.h2[0]
+        dataSend = createMessage(dataSend, {'-h2': h2})
 
     if (arg.h3 != None):
         h3 = arg.h3[0]
+        dataSend = createMessage(dataSend, {'-h3': h3})
 
-    if (arg.band != None):
-        band = arg.band[0]
-
+    newK = k
     if (arg.k != None):
-        k = arg.k[0]
+        newK = arg.k[0]
+
+    #update new coefficent
+    if (dataSend != ''):
+        lockTop.acquire()
+        for i in range(k):
+            lstName.append(nameTop.pop(0))
+            lstSock.append(sockTop.pop(0))
+            topK.pop(0)
+        valueKP1 = 0
+        k = newK
+        for i in range(k):
+            appendToTop()
+        lockTop.release()
+        session += 1
+        dataSend = createMessage(dataSend, {'-ses': session})
+        dataSend = createMessage(dataSend, {'-type': MyEnum.MonNode.SERVER_SET_ARG.value})
+        sendDataToAll(dataSend)
+    else:
+        if (newK < k):
+            lockTop.acquire()
+            valueKP1 = topK[newK]
+            for i in range(k - newK):
+                topK.pop(newK)
+                lstName.append(nameTop.pop(newK))
+                lstSock.append(sockTop.pop(newK))
+            lockTop.release()
+            k = newK
+            sendBoundTo(k-1)
+            sendBoundTo(k)
+        elif (newK > k):
+            lockTop.acquire()
+            valueKP1 = 0
+            for i in range(newK - k):
+                appendToTop()
+            lockTop.release()
+            k = newK
+            forceGetData(0)
+
 
 ################################################################################
 def workWithNode(s : socket.socket, address):
@@ -475,6 +524,7 @@ def workWithUser(s : socket.socket):
     global bUserConnect
     bUserConnect = True
     try:
+        printTop()
         while 1:
             dataRecv = s.recv(1024).decode()
             if (dataRecv == ''):

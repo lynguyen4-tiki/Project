@@ -9,7 +9,7 @@ import json
 import threading
 import os
 
-MODE = 1
+MODE = 2
 
 IP_SERVER = 'localhost'
 PORT_USER = 7021
@@ -53,14 +53,12 @@ def createMessage(strRoot = '', arg = {}):
 
 def inputArgs():
     global sock
-    os.system('clear')
     print('Integrative Function V = h1 * CPU + h2 * RAM + h3 * MEM')
     print('input -1 if ignore the argument:')
     try:
         h1 = int(input('h1 = '))
         h2 = int(input('h2 = '))
         h3 = int(input('h3 = '))
-        band = int(input('bandwidth limit: '))
         k = int(input('Number elements in top: '))
     except Exception:
         return
@@ -73,9 +71,6 @@ def inputArgs():
 
     if (h3 >= 0):
         dataSend = createMessage(dataSend, {'-h3':h3})
-
-    if (band > 0):
-        dataSend = createMessage(dataSend, {'-band':band})
 
     if (k > 0):
         dataSend = createMessage(dataSend, {'-k':k})
@@ -90,15 +85,12 @@ def inputArgs():
         return
 
 def showTop():
-    global nameTop, bShow
-    global valueTop
+    global nameTop
+    global valueTop, bShow
     if (not bShow):
         return
     os.system('clear')
-    if (eps == -1):
-        print('eps = ***')
-    else:
-        print('eps = %d' %(eps))
+
     for i in range(len(nameTop)):
         if (nameTop[i] == ''):
             break
@@ -112,9 +104,8 @@ def updateTopK(data):
 
     try:
         data = json.loads(data)
-        valueTop = data[0]
         nameTop = data[1]
-        eps = data[2]
+        valueTop = data[0]
         showTop()
     except Exception:
         pass
@@ -177,5 +168,5 @@ try:
 
     thUser.join()
     thServer.join()
-except Exception:
+except socket.error:
     pass

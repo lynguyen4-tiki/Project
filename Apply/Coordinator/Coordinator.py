@@ -2,8 +2,12 @@ import json
 import threading
 import socket
 import time
-import Common.MyEnum as MyEnum
-import Common.MyParser as MyParser
+try:
+    import Common.MyEnum as MyEnum
+    import Common.MyParser as MyParser
+except ImportError:
+    import MyEnum
+    import MyParser
 import os
 import random
 
@@ -23,6 +27,7 @@ currentBand = 0
 netIn  = 0
 netOut = 0
 
+#value and name of top elements
 topK = []
 nameTop = []
 
@@ -156,16 +161,19 @@ def findNodeInTop(strname : str):
     lockTop.release()
     return iRet
 
-def forceGetData(bound:int):
+def sendAllNode(data: str):
     global lockLst
-    data = createMessage('', {'-type':MyEnum.MonNode.SERVER_GET_DATA.value})
-    data = createMessage(data, {'-bound':bound})
     for s in lstSock:
         try:
             s.sendall(bytes(data.encode()))
             addNetworkOut(len(data))
         except socket.error:
             pass
+
+def forceGetData(bound:int):
+    data = createMessage('', {'-type':MyEnum.MonNode.SERVER_GET_DATA.value})
+    data = createMessage(data, {'-bound':bound})
+    sendAllNode(data)
 
 def init():
     global serverForNode, serverForUser
@@ -298,22 +306,49 @@ def removeInTop(strName:str):
     pass
 
 def updateArg(arg):
-    global h1, h2, h3, band, k
+    global h1, h2, h3, band, k, lockTop, session
+    dataSend = ''
 
     if (arg.h1 != None):
         h1 = arg.h1[0]
+        dataSend = createMessage(dataSend, {'-h1':h1})
 
     if (arg.h2 != None):
         h2 = arg.h2[0]
+        dataSend = createMessage(dataSend, {'-h2': h2})
 
     if (arg.h3 != None):
         h3 = arg.h3[0]
+        dataSend = createMessage(dataSend, {'-h3': h3})
 
     if (arg.band != None):
         band = arg.band[0]
 
     if (arg.k != None):
-        k = arg.k[0]
+        newK = arg.k[0]
+        if (newK < k):
+            lockTop.acquire()
+            for i in  range(k - newK):
+                topK.pop(newK)
+                nameTop.pop(newK)
+            k = newK
+            lockTop.release()
+        if (newK > k):
+            lockTop.acquire()
+            for i in range(newK - k):
+                topK.append(0)
+                nameTop.append('')
+            k = newK
+            lockTop.release()
+            if (dataSend == ''):
+                forceGetData(0)
+                return
+
+    if (dataSend != ''):
+        session += 1
+        dataSend = createMessage(dataSend, {'-ses' : session})
+        dataSend = createMessage(dataSend, {'-type': MyEnum.MonNode.SERVER_SET_ARG.value})
+        sendAllNode(dataSend)
 
 ################################################################################
 def workWithNode(s : socket.socket, address):
@@ -435,14 +470,12 @@ def workWithUser(s : socket.socket):
 ################################################################################
 init()
 
-
 # create thread for each server
 thNode = threading.Thread(target=acceptNode, args=(serverForNode,))
 thNode.start()
 
 thMon = threading.Thread(target=monNetwork, args=())
 thMon.start()
-
 
 thUser = threading.Thread(target=acceptUser, args=(serverForUser,))
 thUser.start()

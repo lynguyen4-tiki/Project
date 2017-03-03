@@ -1,8 +1,12 @@
 import time
 import threading
 import socket
-import Common.MyEnum as MyEnum
-import Common.MyParser as MyParser
+try:
+    import Common.MyEnum as MyEnum
+    import Common.MyParser as MyParser
+except ImportError:
+    import MyEnum
+    import MyParser
 import random
 import sys
 import os
@@ -49,16 +53,24 @@ def updateArg(arg, sock: socket.socket):
 
     if (arg.h1 != None):
         h1 = arg.h1[0]
+
+    if (arg.h2 != None):
         h2 = arg.h2[0]
+
+    if (arg.h3 != None):
         h3 = arg.h3[0]
+
+    if (arg.session != None):
         session = arg.session[0]
+
+    if (arg.bound != None):
         bound = arg.bound[0]
 
     if (arg.eps != None):
         eps = arg.eps[0]
 
     #server updates new coefficient so we have to send new value to server
-    if (arg.h1 != None):
+    if (arg.session != None):
         bStartMon = False
         time.sleep(DELTA_TIME + 1)
         V = h1 * dtCPU + h2 * dtRAM + h3 * dtMEM
