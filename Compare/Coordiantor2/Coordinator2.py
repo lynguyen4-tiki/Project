@@ -1,26 +1,27 @@
 import json
 import threading
 import socket
+import time
 try:
     import Common.MyEnum as MyEnum
     import Common.MyParser as MyParser
 except ImportError:
     import MyEnum
     import MyParser
-import time
-import os
-import random
 
 DEBUG = True
 
+ext = ''
+
 # init arguments
-k = 2       # number elements in top
+DELTA_K = 3
+k = 4 + DELTA_K      # number elements in top
 h1 = 1      # Coefficient of the 1st element in integrative function
 h2 = 1      # Coefficient of the 2nd element in integrative function
 h3 = 1      # Coefficient of the 3rd element in integrative function
 session = 0 # the number of session
-eps = 3     # epsilon
-band = 10   # limit bandwidth
+
+currentK = 0
 
 currentBand = 0
 netIn  = 0
@@ -40,10 +41,10 @@ IP_SERVER  = 'localhost'
 PORT_NODE = 7049
 PORT_USER = 7012
 MAX_NUMBER_NODE = 50
-DELTA_BAND = 5
-DELTA_EPS = 2
+FILE_MON_NET = 'NetWorkLoad_'+ ext+'.dat'
 
-TIME_CAL_NETWORK = 2.0
+NUM_MONITOR = 120
+TIME_CAL_NETWORK = 3.0
 
 ################################################################################
 def addNetworkIn(value:int):
@@ -60,11 +61,17 @@ def addNetworkOut(value:int):
     netOut += value
     lockNetOut.release()
 
+def saveNetWorkLoad(netWorkLoad : int):
+    with open(FILE_MON_NET, 'a') as f:
+        f.write(str(netWorkLoad) + '\n')
+
 def monNetwork():
     global lockNetIn
     global lockNetOut
     global netIn
     global netOut
+    global countNode
+    countTime = 0
 
     while 1:
         time.sleep(TIME_CAL_NETWORK)
@@ -78,8 +85,13 @@ def monNetwork():
         netOut = 0
         lockNetOut.release()
 
-        # if DEBUG:
-        #     print('netIn = %.2f _________ netOut = %.2f' %(nIn, nOut) )
+        if DEBUG:
+            print('netIn = %.2f _________ netOut = %.2f' %(nIn, nOut) )
+        if (countNode > 0):
+            countTime += 1
+            print('CountTime = %d' %(countTime))
+            if (countTime <= NUM_MONITOR):
+                saveNetWorkLoad(int(nIn + nOut))
 
 ################################################################################
 def swap(i:int, j:int):
@@ -121,7 +133,7 @@ def sendDataToAll(data:str):
         try:
             s.sendall(bytes(data.encode()))
             addNetworkOut(len(data))
-        except socket.error:
+        except Exception:
             pass
     lockLst.release()
 
@@ -163,14 +175,29 @@ def init():
     lockNetOut = threading.Lock()
     lockUpdate = threading.Lock()
 
+    #delete old file
+    f = open(FILE_MON_NET, 'w')
+    f.close()
+
     #init argument parser
     parser = MyParser.createParser()
 
 def printTop():
-    global userSock
-    data = json.dumps([topK, nameTop])
-    if (DEBUG):
-        print(data)
+    global userSock, lockTop
+    tmpTop = []
+    tmpName = []
+
+    lockTop.acquire()
+    for i in range(k - DELTA_K):
+        if (tmpName == ''):
+            break
+        tmpTop.append(topK[i])
+        tmpName.append(nameTop[i])
+    lockTop.release()
+
+    data = json.dumps([tmpTop, tmpName])
+    # if (DEBUG):
+    #     print(data)
 
     try:
         userSock.sendall(data.encode())
@@ -190,22 +217,12 @@ def sendOneSock(low:float, high:float, sock:socket.socket):
     except socket.error:
         pass
 
-def sendAllSock(high:float):
-    dataSend = ''
-    dataSend = createMessage(dataSend, {'-high':high})
-    dataSend = createMessage(dataSend, {'-low': -1})
-    dataSend = createMessage(dataSend, {'-type':MyEnum.MonNode.SERVER_SET_ARG.value})
-    sendDataToAll(dataSend)
-
 def sendBoundTo(pos : int):
+    global currentK, valueKP1
     if (pos < 0):
         return
 
-    if (pos == k):
-        if (valueKP1 == 0):
-            return
-        highBound = (valueKP1 + topK[k-1]) / 2.0
-        sendAllSock(highBound)
+    if (pos >= currentK - 1):
         return
 
     if (topK[pos] == 0):
@@ -216,30 +233,38 @@ def sendBoundTo(pos : int):
     else:
         highBound = (topK[pos] + topK[pos - 1]) / 2.0
 
-    if (pos == k - 1):
-        if (valueKP1 == 0):
-            lowBound = -1
-        else:
-            lowBound = (topK[pos] + valueKP1) / 2.0
+    if (pos == currentK - 1):
+        lowBound = valueKP1
     else:
-        if (topK[pos + 1] == 0):
-            lowBound = -1
-        else:
-            lowBound = (topK[pos] + topK[pos + 1]) / 2.0
+         lowBound = (topK[pos] + topK[pos + 1]) / 2.0
 
     sendOneSock(lowBound, highBound, sockTop[pos])
 
 def sendBoundAround(pos: int):
+    print('around')
     sendBoundTo(pos - 1)
     sendBoundTo(pos)
     sendBoundTo(pos + 1)
 
+def sendBoundSwap(pos1:int, pos2:int):
+    sendBoundAround(pos1)
+    # if (pos2 >= pos1 - 1 and pos2 <= pos1 + 1):
+    #     pass
+    # else:
+    #     sendBoundTo(pos2)
+    #
+    # if (pos2 + 1 >= pos1 - 1 and pos2 + 1 <= pos1 + 1):
+    #     pass
+    # else:
+    #     sendBoundTo(pos2 + 1)
+
 #add new element in top
 def addToTopK(value: int, name: str, sock : socket.socket):
-    global lockTop, lockLst, valueKP1
+    global lockTop, lockLst, valueKP1, currentK, k
     d = 0
-    c = k - 1
+    c = currentK - 1
     g = int((d + c) /2)
+    tmpSock = None
 
     lockTop.acquire()
     while (d <= c):
@@ -256,13 +281,14 @@ def addToTopK(value: int, name: str, sock : socket.socket):
     lockLst.acquire()
     lstSock.remove(sock)
     lstName.remove(name)
-    if (nameTop[k-1] != ''):
-        lstSock.append(sockTop[k-1])
-        lstName.append(nameTop[k-1])
-        valueKP1 = topK[k-1]
+    if (nameTop[currentK-1] != ''):
+        lstSock.append(sockTop[currentK-1])
+        lstName.append(nameTop[currentK-1])
+        tmpSock = sockTop[currentK-1]
+        valueKP1 = topK[currentK-1]
     lockLst.release()
 
-    for i in range(k-1, g, -1):
+    for i in range(currentK-1, g, -1):
         topK[i] = topK[i-1]
         nameTop[i] = nameTop[i-1]
         sockTop[i] = sockTop[i-1]
@@ -274,14 +300,14 @@ def addToTopK(value: int, name: str, sock : socket.socket):
     printTop()
     #update filter
     sendBoundAround(g)
-    if (g != k-1 and valueKP1 != 0):
-        sendBoundTo(k)
+    if (tmpSock != None):
+        sendOneSock(-1, valueKP1, tmpSock)
 
 #change the order of the element in top
 def changeOrderInTop(value : int, iNodeInTop: int) :
-    global lockTop, valueKP1, lockLst
+    global lockTop, valueKP1, lockLst, currentK
     tmpIndex = iNodeInTop
-    oldBound = (topK[k-1] + valueKP1) / 2.0
+
     if (value > topK[iNodeInTop]):
         # pull up
         lockTop.acquire()
@@ -290,10 +316,7 @@ def changeOrderInTop(value : int, iNodeInTop: int) :
             iNodeInTop -= 1
             swap(iNodeInTop, iNodeInTop + 1)
         #update filter
-        sendBoundAround(iNodeInTop)
-        if (tmpIndex != iNodeInTop):
-            sendBoundTo(tmpIndex + 1)
-            sendBoundTo(tmpIndex)
+        sendBoundSwap(iNodeInTop, tmpIndex)
         lockTop.release()
         printTop()
         return
@@ -302,57 +325,72 @@ def changeOrderInTop(value : int, iNodeInTop: int) :
         #pull down
         lockTop.acquire()
         topK[iNodeInTop] = value
-        while (iNodeInTop < k -1 and value < topK[iNodeInTop + 1]):
+        while (iNodeInTop < currentK -1 and value < topK[iNodeInTop + 1]):
             iNodeInTop += 1
             swap(iNodeInTop, iNodeInTop - 1)
         lockTop.release()
-        # call all node to get lastest data if the value k-th element decreases
-        if (iNodeInTop == k - 1):
-            if (value > oldBound):
-                sendBoundAround(k - 1)
-                if (tmpIndex != iNodeInTop):
-                    sendBoundTo(tmpIndex)
-                    sendBoundTo(tmpIndex - 1)
+        # process if the value k-th element decreases
+        if (iNodeInTop == currentK - 1):
+
+            if (value >= valueKP1):
+                sendBoundSwap(iNodeInTop, tmpIndex - 1)
             else:
-                valueKP1 = topK[k-1] / 2
-                if (valueKP1 == 0):
-                    valueKP1 = 1
-                if (tmpIndex != iNodeInTop):
-                    sendBoundTo(tmpIndex)
-                    sendBoundTo(tmpIndex - 1)
-                sendBoundAround(k - 1)
+                lockTop.acquire()
+                lstSock.append(sockTop[iNodeInTop])
+                lstName.append(nameTop[iNodeInTop])
+                nameTop[iNodeInTop] = ''
+                tmpSock = sockTop[iNodeInTop]
+                sockTop[iNodeInTop] = None
+                topK[iNodeInTop] = 0
+                currentK -= 1
+                sendOneSock(-1, valueKP1, tmpSock)
+                sendBoundSwap(iNodeInTop, tmpIndex - 1)
+                lockTop.release()
+
+                if (currentK < k - DELTA_K):
+                    valueKP1 = 0
+                    forceGetData(0)
+
         else:
-            sendBoundAround(iNodeInTop)
-            if (tmpIndex != iNodeInTop):
-                sendBoundTo(tmpIndex)
-                sendBoundTo(tmpIndex - 1)
+            sendBoundSwap(iNodeInTop, tmpIndex - 1)
         printTop()
         return
 
 def updateTopK(value:int, name : str, s:socket.socket):
-    global valueKP1, lockUpdate
-    #lockUpdate.acquire()
+    global valueKP1,currentK
+
     nameNode = name
     iNodeInTop = findNodeInTop(nameNode)
-    # this change doesn't effect to top
-    if (iNodeInTop == -1 and value < topK[k-1]):
-        if (value > valueKP1):
-            valueKP1 = value
-            sendBoundTo(k-1)
-            sendBoundTo(k)
-        return
 
-    #an element goes in Top
-    if (iNodeInTop == -1 and value > topK[k - 1]):
+    if (iNodeInTop == -1):
+        # this change doesn't effect to top
+        if (value <= valueKP1):
+            sendOneSock(-1, valueKP1, s)
+            return
+
+        # an element goes in Top
+        if (currentK < k):
+            currentK += 1
+            addToTopK(value, name, s)
+            return
+
+        #currentK == k, doesn't effect to top, but effect filters
+        if (value < topK[k-1]):
+            valueKP1 = value
+            print('top')
+            sendBoundTo(k-1)
+            sendOneSock(-1, valueKP1, s)
+            return
+
+        #replace an element in top
         addToTopK(value, name, s)
         return
 
     changeOrderInTop(value, iNodeInTop)
-    #lockUpdate.release()
 
 #remove the node that is disconnected
 def removeInTop(strName:str, s:socket.socket):
-    global lockTop, valueKP1
+    global lockTop, valueKP1, currentK
     iIndex = findNodeInTop(strName)
     if (iIndex == -1):
         lockLst.acquire()
@@ -360,20 +398,23 @@ def removeInTop(strName:str, s:socket.socket):
         lstName.remove(strName)
         lockLst.release()
         return
+
     lockTop.acquire()
-    for i in range(iIndex, k-1):
+    for i in range(iIndex, currentK-1):
         swap(i, i+ 1)
-    topK[k-1] = 0
-    nameTop[k-1] = ''
-    sockTop[k-1] = None
-    valueKP1 = 0
+    topK[currentK-1] = 0
+    nameTop[currentK-1] = ''
+    sockTop[currentK-1] = None
+    currentK -= 1
     lockTop.release()
-    forceGetData(0)
+    if (currentK < k - DELTA_K):
+        valueKP1 = 0
+        forceGetData(0)
     printTop()
     pass
 
 def updateArg(arg):
-    global h1, h2, h3, k, lockTop, valueKP1, session
+    global h1, h2, h3, k, lockTop, valueKP1, session, currentK
     dataSend = ''
 
     if (arg.h1 != None):
@@ -391,6 +432,7 @@ def updateArg(arg):
     newK = k
     if (arg.k != None):
         newK = arg.k[0]
+        newK += DELTA_K
 
     #update new coefficent
     if (dataSend != ''):
@@ -412,6 +454,7 @@ def updateArg(arg):
         if (newK < k):
             lockTop.acquire()
             valueKP1 = topK[newK]
+            tmpSock = sockTop[newK]
             for i in range(k - newK):
                 topK.pop(newK)
                 lstName.append(nameTop.pop(newK))
@@ -419,7 +462,9 @@ def updateArg(arg):
             lockTop.release()
             k = newK
             sendBoundTo(k-1)
-            sendBoundTo(k)
+            sendOneSock(-1, valueKP1, tmpSock)
+            if (currentK > newK):
+                currentK = newK
         elif (newK > k):
             lockTop.acquire()
             valueKP1 = 0
@@ -427,8 +472,8 @@ def updateArg(arg):
                 appendToTop()
             lockTop.release()
             k = newK
-            forceGetData(0)
-
+            if (currentK < newK - DELTA_K):
+                forceGetData(0)
 
 ################################################################################
 def workWithNode(s : socket.socket, address):

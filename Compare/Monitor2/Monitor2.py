@@ -4,18 +4,21 @@ import socket
 try:
     import Common.MyEnum as MyEnum
     import Common.MyParser as MyParser
+    import Common.GetDataFromServer as GetData
 except ImportError:
     import MyEnum
     import MyParser
-import random
+    import GetDataFromServer as GetData
+
 import sys
 import os
 
 DEBUG = False
+DATA_MODE = MyEnum.MonNode.DATA_GEN_AUTO.value
 
 IP_SERVER  = 'localhost'
 PORT_NODE = 7049
-DELTA_TIME = 2
+DELTA_TIME = 2.0
 SAMPLE_ON_CIRCLE = 10
 bStartMon = False
 bStop = False
@@ -26,17 +29,15 @@ highBound = -1
 ################################################################################
 #read from file config to get information
 def readConfig():
-    global myName
+    global myName, startTime, addName, fileData
     myName = 'Mon_'
-    try:
-        addName = sys.argv[1]
-        myName = myName + addName
-    except Exception:
-        pass
+
+    addName = sys.argv[1]
+    myName = myName + addName
 
     try:
-        with open('config.cfg', 'r') as f:
-            myName = f.readline().replace('\n','')
+        with open('config' + addName + '.cfg', 'r') as f:
+            myName = f.readline().replace('\n', '')
     except IOError:
         pass
 
@@ -138,31 +139,51 @@ def workWithServer(sock : socket.socket):
         bStop = True
         sock.close()
 
+def getData():
+
+    if (DATA_MODE == MyEnum.MonNode.DATA_FROM_INFLUXDB.value):
+        global timeStart
+        if (timeStart > GetData.ONE_MINUTE * GetData.MAX_TIME + startTime):
+            timeStart = startTime
+        result = GetData.getData(timeStart)
+        timeStart += GetData.ONE_MINUTE
+        return result
+
+    elif (DATA_MODE == MyEnum.MonNode.DATA_GEN_AUTO.value):
+        global fileData
+        line = fileData.readline().replace('\n', '')
+        if (line == ''):
+            fileData.close()
+            fileData = open('data' + str(addName) + '.dat', 'r')
+            line = fileData.readline().replace('\n', '')
+
+        strData = line.split(' ')
+        iData = [0, 0, 0]
+        iData[0] = int(strData[0])
+        iData[1] = int(strData[1])
+        iData[2] = int(strData[2])
+
+        return iData
+
 #monitor data
 def monData(sock: socket.socket):
     STEP = 2
-    global V, dtCPU, dtRAM, dtMEM, lowBound, highBound, myName
+    global V, dtCPU, dtRAM, dtMEM, lowBound, highBound, myName, addName
     V = 0
     dtCPU = 0
     dtRAM = 0
     dtMEM = 0
-    tmpCPU = random.randint(30, 40)
-    tmpRAM = random.randint(30, 40)
-    tmpMEM = random.randint(30, 40)
 
-    if DEBUG:
-        return
+    if (DATA_MODE == MyEnum.MonNode.DATA_FROM_INFLUXDB.value):
+        global timeStart, startTime
+        startTime = GetData.TIME_START + GetData.ONE_MINUTE * GetData.MAX_TIME * int(addName)
+        timeStart = startTime
+    elif (DATA_MODE == MyEnum.MonNode.DATA_GEN_AUTO.value):
+        global fileData
+        fileData = open('data' + str(addName) + '.dat', 'r')
 
     while (not bStop):
-        tmpCPU = tmpCPU + random.randint(-2, 2) * STEP
-        tmpRAM = tmpRAM + random.randint(-2, 2) * STEP
-        tmpMEM = tmpMEM + random.randint(-2, 2) * STEP
-        if (tmpCPU < 0):
-            tmpCPU = 2
-        if (tmpRAM < 0):
-            tmpRAM = 2
-        if (tmpMEM < 0):
-            tmpMEM = 2
+        tmpCPU, tmpRAM, tmpMEM = getData()
 
         if (bStartMon == False):
             dtCPU = tmpCPU
@@ -185,6 +206,11 @@ def monData(sock: socket.socket):
                     return
 
         time.sleep(DELTA_TIME)
+
+    if (DATA_MODE == MyEnum.MonNode.DATA_GEN_AUTO.value):
+        fileData.close()
+    elif (DATA_MODE == MyEnum.MonNode.DATA_FROM_INFLUXDB.value):
+        pass
 ################################################################################
 ################################################################################
 #init connection

@@ -11,3 +11,6 @@ class MonNode(enum.Enum):
     NODE_SET_DATA = 2
     SERVER_SET_ARG = 3
     SERVER_GET_DATA = 4
+    DATA_GEN_AUTO = 5
+    DATA_FROM_INFLUXDB = 6
+    DATA_REALTIME = 7
