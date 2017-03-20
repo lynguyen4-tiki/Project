@@ -9,13 +9,8 @@ import json
 import threading
 import os
 
-MODE = 2
-
 IP_SERVER = 'localhost'
-PORT_USER = 7021
-
-if MODE == 2:
-    PORT_USER = 7012
+PORT_USER = 7022
 
 HELP = """
 ____________________________________________________________

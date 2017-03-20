@@ -5,14 +5,20 @@ import time
 try:
     import Common.MyEnum as MyEnum
     import Common.MyParser as MyParser
+    import Apply.Coordinator.ParseCor as ParseCor
 except ImportError:
     import MyEnum
     import MyParser
+    import ParseCor
+
 
 DEBUG = True
+CONSTAN_EPS = 1
+NON_CONSTAN_EPS = 0
 
+MODE_EPS = NON_CONSTAN_EPS
 eps = 0     # epsilon
-ext = str('band50')
+ext = str('')
 # init arguments
 DELTA_K = 3
 k = 4 + DELTA_K       # number elements in top
@@ -20,7 +26,6 @@ h1 = 1      # Coefficient of the 1st element in integrative function
 h2 = 1      # Coefficient of the 2nd element in integrative function
 h3 = 1      # Coefficient of the 3rd element in integrative function
 session = 0 # the number of session
-delta = 1   # coefficent delay
 band = 30  # limit bandwidth
 
 currentBand = 0
@@ -45,6 +50,7 @@ MAX_NUMBER_NODE = 50
 DELTA_BAND = int(band / 10)
 DELTA_EPS = 1
 FILE_MON_NET = 'NetWorkLoad_'+ ext+'.dat'
+FILE_MON_TOP = 'Top_' + ext + '.dat'
 
 NUM_MONITOR = 120
 
@@ -67,6 +73,7 @@ def addNetworkOut(value:int):
     lockNetOut.release()
 
 def sendEPS(value:int):
+    global  DEBUG
     printTop()
     if (DEBUG):
         print('eps = %d' %(value))
@@ -81,11 +88,27 @@ def sendEPS(value:int):
             pass
 
 def saveNetworkLoad(currentBand, eps):
+    global lockTop
     tmp = eps
     if (tmp <= DELTA_EPS):
         tmp = 0
+
+    with open(FILE_MON_TOP, 'a') as f1:
+        lockTop.acquire()
+        i = 0
+        for i in range(k - DELTA_K - 1, -1, -1):
+            if (topK[i] != 0):
+                break
+        if (i >= 0 and topK[i] != 0):
+            f1.write(str(topK[i]) + ' ')
+            for j in range(0, i + 1):
+                f1.write(nameTop[j] + ' ')
+            f1.write('\n')
+        lockTop.release()
+
     with open(FILE_MON_NET, 'a') as f:
         f.write(str(currentBand) + ' ' + str(tmp) + '\n')
+
 
 def monNetwork():
     global lockNetIn
@@ -93,7 +116,7 @@ def monNetwork():
     global netIn
     global netOut
     global eps
-    global countNode
+    global countNode, DEBUG, MODE_EPS
     countTime = 0
     BOUND_RESTART = 3
 
@@ -120,40 +143,42 @@ def monNetwork():
             if (countTime <= NUM_MONITOR):
                 saveNetworkLoad(int(nIn) + int(nOut), eps)
 
-
-        if (nIn + nOut < band - DELTA_BAND):
-            countCir += 1
-            if (countCir >= BOUND_RESTART):
-                countCir = 0
-                if (eps <= DELTA_EPS):
-                    eps = DELTA_EPS
-                    oldEps = 0
-                    countCir = 0
-                    continue
-                if (eps - oldEps <= DELTA_EPS):
-                    oldEps = eps
-                    eps = int(eps / 2)
-                    if (eps < DELTA_EPS):
-                        eps = DELTA_EPS
-                        sendEPS(0)
-                    else:
-                        sendEPS(eps)
-                    continue
-                eps = int ((eps + oldEps) / 2)
-                sendEPS(eps)
-
-        elif (nIn + nOut > band + DELTA_BAND):
-            countCir -= 1
-            if (countCir < -BOUND_RESTART):
-                countCir = 0
-                oldEps = eps
-                eps *= 2
-                sendEPS(eps)
-        else:
-            if (countCir < 0):
+        if (MODE_EPS != CONSTAN_EPS):
+            if (eps < DELTA_EPS):
+                eps = DELTA_EPS
+            if (nIn + nOut < band - DELTA_BAND):
                 countCir += 1
-            elif (countCir > 0):
+                if (countCir >= BOUND_RESTART):
+                    countCir = 0
+                    if (eps <= DELTA_EPS):
+                        eps = DELTA_EPS
+                        oldEps = 0
+                        countCir = 0
+                        continue
+                    if (eps - oldEps <= DELTA_EPS):
+                        oldEps = eps
+                        eps = int(eps / 2)
+                        if (eps < DELTA_EPS):
+                            eps = DELTA_EPS
+                            sendEPS(0)
+                        else:
+                            sendEPS(eps)
+                        continue
+                    eps = int ((eps + oldEps) / 2)
+                    sendEPS(eps)
+
+            elif (nIn + nOut > band + DELTA_BAND):
                 countCir -= 1
+                if (countCir < -BOUND_RESTART):
+                    countCir = 0
+                    oldEps = eps
+                    eps *= 2
+                    sendEPS(eps)
+            else:
+                if (countCir < 0):
+                    countCir += 1
+                elif (countCir > 0):
+                    countCir -= 1
 
 ################################################################################
 def swap(i:int, j:int):
@@ -194,16 +219,51 @@ def sendAllNode(data: str):
             pass
 
 def forceGetData(bound:int):
+    global eps
     if (eps <= DELTA_EPS):
         return
     data = createMessage('', {'-type':MyEnum.MonNode.SERVER_GET_DATA.value})
     data = createMessage(data, {'-bound':bound})
     sendAllNode(data)
 
+def readConfig(fName : str):
+    global DEBUG, MODE_EPS, eps, DELTA_K, k, h1, h2, h3, band, IP_SERVER, PORT_NODE, FILE_MON_TOP
+    global PORT_USER, MAX_NUMBER_NODE, DELTA_BAND, DELTA_EPS, FILE_MON_NET, NUM_MONITOR, TIME_CAL_NETWORK
+
+    arg = ParseCor.readConfig(fName)
+    if (arg == None):
+        return
+
+    DEBUG = arg.DEBUG
+    MODE_EPS = arg.MODE_EPS
+    eps = arg.eps
+    ext = arg.ext
+    DELTA_K = arg.DELTA_K
+    k = arg.k + DELTA_K
+    h1 = arg.h1
+    h2 = arg.h2
+    h3 = arg.h3
+    band = arg.band
+    IP_SERVER = arg.IP_SERVER
+    PORT_NODE = arg.PORT_NODE
+    PORT_USER = arg.PORT_USER
+    MAX_NUMBER_NODE = arg.MAX_NUMBER_NODE
+    DELTA_BAND = int(band / 10)
+    DELTA_EPS = arg.DELTA_EPS
+    FILE_MON_NET = 'NetWorkLoad_'+ ext+'.dat'
+    FILE_MON_TOP = 'Top_' + ext + '.dat'
+    NUM_MONITOR = arg.NUM_MONITOR
+    TIME_CAL_NETWORK = arg.TIME_CAL_NETWORK
+
 def init():
     global serverForNode, serverForUser
     global lockCount, lockLst, lockTop, lockNetIn, lockNetOut
-    global parser
+    global parser, k
+
+    try:
+        readConfig('corConfig.cfg')
+    except Exception:
+        pass
 
     for i in range(k):
         topK.append(0)
@@ -232,9 +292,11 @@ def init():
     #delete old file
     f = open(FILE_MON_NET, 'w')
     f.close()
+    f = open(FILE_MON_TOP, 'w')
+    f.close()
 
 def printTop():
-    global userSock, eps, lockTop
+    global userSock, eps, lockTop, DEBUG, DELTA_K, k
     epsTmp = eps
     if (epsTmp <= DELTA_EPS):
         epsTmp = 0
@@ -263,7 +325,7 @@ def printTop():
 ################################################################################
 #add new element in top
 def addToTopK(value: int, name: str):
-    global lockTop, currentK
+    global lockTop, currentK, k
     d = 0
     c = currentK - 1
     g = int((d + c) /2)
@@ -294,7 +356,7 @@ def addToTopK(value: int, name: str):
 #change the order of the element in top
 def changeOrderInTop(value : int, iNodeInTop: int) :
     global lockTop
-    global countNode, currentK
+    global countNode, currentK, DELTA_K, k
     if (value > topK[iNodeInTop]):
         # pull up
         lockTop.acquire()
@@ -315,8 +377,8 @@ def changeOrderInTop(value : int, iNodeInTop: int) :
             swap(iNodeInTop, iNodeInTop - 1)
 
         # call all node to get lastest data if the value k-th element decreases
-        if (iNodeInTop == currentK - 1):
-            if (currentK <= k - DELTA_K  and countNode > currentK):
+        if (iNodeInTop == currentK - 1 and countNode > currentK):
+            if (currentK <= k - DELTA_K ):
                 lockTop.release()
                 forceGetData(0)
             else:
@@ -346,7 +408,8 @@ def updateTopK(value:int, name : str):
 
 #remove the node that is disconnected
 def removeInTop(strName:str):
-    global lockTop, currentK
+    global lockTop, currentK, DELTA_K, k
+
     iIndex = findNodeInTop(strName)
     if (iIndex == -1):
         return
@@ -363,7 +426,7 @@ def removeInTop(strName:str):
     pass
 
 def updateArg(arg):
-    global h1, h2, h3, band, k, lockTop, session, DELTA_BAND
+    global h1, h2, h3, band, k, lockTop, session, DELTA_BAND, DELTA_K
     dataSend = ''
 
     if (arg.h1 != None):
@@ -413,7 +476,7 @@ def updateArg(arg):
 def workWithNode(s : socket.socket, address):
     global countNode
     global lockCount
-    global lockLst
+    global lockLst, eps
 
     try:
         #receive name
@@ -423,7 +486,7 @@ def workWithNode(s : socket.socket, address):
             if (dataRecv != ''):
                 arg = parser.parse_args(dataRecv.lstrip().split(' '))
                 nameNode = arg.name[0]
-                nameNode = str(address) + nameNode
+                nameNode = str(address).replace(' ', '') + nameNode
         except socket.error:
             return
         except Exception:
@@ -528,6 +591,7 @@ def workWithUser(s : socket.socket):
 
 ################################################################################
 ################################################################################
+
 init()
 
 # create thread for each server
@@ -540,8 +604,12 @@ thMon.start()
 thUser = threading.Thread(target=acceptUser, args=(serverForUser,))
 thUser.start()
 
-#wait for all thread terminate
-thNode.join()
-thMon.join()
+try:
+    #wait for all thread terminate
+    thNode.join()
+    thMon.join()
 
-thUser.join()
+    thUser.join()
+except Exception:
+    serverForNode.close()
+    serverForUser.close()

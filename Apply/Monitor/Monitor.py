@@ -5,10 +5,12 @@ try:
     import Common.MyEnum as MyEnum
     import Common.MyParser as MyParser
     import Common.GetDataFromServer as GetData
+    import Apply.Monitor.ParseMon as ParseMon
 except ImportError:
     import MyEnum
     import MyParser
     import GetDataFromServer as GetData
+    import ParseMon
 
 import sys
 import os
@@ -27,17 +29,28 @@ session = -1
 ################################################################################
 #read from file config to get information
 def readConfig():
-    global myName, startTime, addName, fileData
-    myName = 'Mon_'
-
-    addName = sys.argv[1]
-    myName = myName + addName
-
+    global myName, startTime, addName, fileData, DEBUG, DATA_MODE, IP_SERVER, PORT_NODE, DELTA_TIME, SAMPLE_ON_CIRCLE
+    addName = ''
+    fName = 'monConfig'
     try:
-        with open('config' + addName +'.cfg', 'r') as f:
-            myName = f.readline().replace('\n','')
-    except IOError:
+        addName = sys.argv[1]
+    except Exception:
         pass
+    myName = addName
+
+    fName += str(addName) + '.cfg'
+
+    arg = ParseMon.readConfig(fName)
+    if (arg == None):
+        return
+    myName = arg.NAME
+    DEBUG = arg.DEBUG
+    DATA_MODE = arg.DATA_MODE
+    IP_SERVER = arg.IP_SERVER
+    PORT_NODE = arg.PORT_NODE
+    DELTA_TIME = arg.DELTA_TIME
+    SAMPLE_ON_CIRCLE = arg.SAMPLE_ON_CIRCLE
+
 
 #create message to send to server
 def createMessage(strRoot = '', arg = {}):
@@ -172,7 +185,12 @@ def monData(sock: socket.socket):
 
     if (DATA_MODE == MyEnum.MonNode.DATA_FROM_INFLUXDB.value):
         global timeStart, startTime
-        startTime = GetData.TIME_START + GetData.ONE_MINUTE * GetData.MAX_TIME * int(addName)
+        value = 0
+        if (len(addName) == 0):
+            value = 0
+        else:
+            value = int(addName)
+        startTime = GetData.TIME_START + GetData.ONE_MINUTE * GetData.MAX_TIME * value
         timeStart = startTime
     elif (DATA_MODE == MyEnum.MonNode.DATA_GEN_AUTO.value):
         global  fileData
@@ -229,5 +247,6 @@ try:
     thWork.join()
     thMon.join()
 
-except socket.error:
+except socket.error as e:
+    print(e)
     pass
