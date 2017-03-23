@@ -610,6 +610,6 @@ try:
     thMon.join()
 
     thUser.join()
-except Exception:
+except KeyboardInterrupt:
     serverForNode.close()
     serverForUser.close()
