@@ -11,7 +11,6 @@ except ImportError:
     import MyParser
     import ParseCor
 
-
 DEBUG = True
 CONSTAN_EPS = 1
 NON_CONSTAN_EPS = 0
@@ -49,8 +48,8 @@ PORT_USER = 7021
 MAX_NUMBER_NODE = 50
 DELTA_BAND = int(band / 10)
 DELTA_EPS = 1
-FILE_MON_NET = 'NetWorkLoad_'+ ext+'.dat'
-FILE_MON_TOP = 'Top_' + ext + '.dat'
+FILE_MON_NET = 'data/NetWorkLoad_'+ ext+'.dat'
+FILE_MON_TOP = 'data/Top_' + ext + '.dat'
 
 NUM_MONITOR = 120
 
@@ -108,7 +107,6 @@ def saveNetworkLoad(currentBand, eps):
 
     with open(FILE_MON_NET, 'a') as f:
         f.write(str(currentBand) + ' ' + str(tmp) + '\n')
-
 
 def monNetwork():
     global lockNetIn
@@ -245,13 +243,11 @@ def readConfig(fName : str):
     h3 = arg.h3
     band = arg.band
     IP_SERVER = arg.IP_SERVER
-    PORT_NODE = arg.PORT_NODE
-    PORT_USER = arg.PORT_USER
     MAX_NUMBER_NODE = arg.MAX_NUMBER_NODE
     DELTA_BAND = int(band / 10)
     DELTA_EPS = arg.DELTA_EPS
-    FILE_MON_NET = 'NetWorkLoad_'+ ext+'.dat'
-    FILE_MON_TOP = 'Top_' + ext + '.dat'
+    FILE_MON_NET = 'data/NetWorkLoad_'+ ext+'.dat'
+    FILE_MON_TOP = 'data/Top_' + ext + '.dat'
     NUM_MONITOR = arg.NUM_MONITOR
     TIME_CAL_NETWORK = arg.TIME_CAL_NETWORK
 
@@ -261,7 +257,7 @@ def init():
     global parser, k
 
     try:
-        readConfig('corConfig.cfg')
+        readConfig('config/corConfig.cfg')
     except Exception:
         pass
 
@@ -426,7 +422,7 @@ def removeInTop(strName:str):
     pass
 
 def updateArg(arg):
-    global h1, h2, h3, band, k, lockTop, session, DELTA_BAND, DELTA_K
+    global h1, h2, h3, band, k, lockTop, session, DELTA_BAND, DELTA_K, currentK
     dataSend = ''
 
     if (arg.h1 != None):
@@ -454,6 +450,8 @@ def updateArg(arg):
                 topK.pop(newK)
                 nameTop.pop(newK)
             k = newK
+            if (currentK > k):
+                currentK = k
             lockTop.release()
         if (newK > k):
             lockTop.acquire()

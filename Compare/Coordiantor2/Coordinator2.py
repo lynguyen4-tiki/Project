@@ -5,11 +5,15 @@ import time
 try:
     import Common.MyEnum as MyEnum
     import Common.MyParser as MyParser
+    import Compare.Coordiantor2.ParseCor2 as ParseCor2
 except ImportError:
     import MyEnum
     import MyParser
+    import ParseCor2
 
 DEBUG = True
+serverForNode = socket.socket()
+serverForUser = socket.socket()
 
 ext = ''
 
@@ -38,10 +42,11 @@ lstName = []
 bUserConnect = False
 
 IP_SERVER  = 'localhost'
-PORT_NODE = 7049
-PORT_USER = 7012
+PORT_NODE = 9407
+PORT_USER = 7021
 MAX_NUMBER_NODE = 50
-FILE_MON_NET = 'NetWorkLoad_'+ ext+'.dat'
+FILE_MON_NET = 'data/NetWorkLoad_'+ ext+'.dat'
+FILE_MON_TOP = 'data/Top_' + ext + '.dat'
 
 NUM_MONITOR = 120
 TIME_CAL_NETWORK = 3.0
@@ -149,10 +154,37 @@ def appendToTop(value = 0, sock = None, name = ''):
     sockTop.append(sock)
     nameTop.append(name)
 
+def readConfig(fName=''):
+    global DEBUG, DELTA_K, k, h1, h2, h3, IP_SERVER, PORT_NODE, FILE_MON_TOP
+    global PORT_USER, MAX_NUMBER_NODE, FILE_MON_NET, NUM_MONITOR, TIME_CAL_NETWORK
+
+    arg = ParseCor2.readConfig(fName)
+    if (arg == None):
+        return
+
+    DEBUG = arg.DEBUG
+    ext = arg.ext
+    DELTA_K = arg.DELTA_K
+    k = arg.k + DELTA_K
+    h1 = arg.h1
+    h2 = arg.h2
+    h3 = arg.h3
+    IP_SERVER = arg.IP_SERVER
+    MAX_NUMBER_NODE = arg.MAX_NUMBER_NODE
+    FILE_MON_NET = 'data/NetWorkLoad_' + ext + '.dat'
+    FILE_MON_TOP = 'data/Top_' + ext + '.dat'
+    NUM_MONITOR = arg.NUM_MONITOR
+    TIME_CAL_NETWORK = arg.TIME_CAL_NETWORK
+
 def init():
     global serverForNode, serverForUser
     global lockCount, lockLst, lockTop, lockNetIn, lockNetOut, lockUpdate
     global parser
+
+    try:
+        readConfig('config/corConfig.cfg')
+    except Exception:
+        pass
 
     for i in range(k):
         appendToTop()
@@ -241,22 +273,12 @@ def sendBoundTo(pos : int):
     sendOneSock(lowBound, highBound, sockTop[pos])
 
 def sendBoundAround(pos: int):
-    print('around')
     sendBoundTo(pos - 1)
     sendBoundTo(pos)
     sendBoundTo(pos + 1)
 
 def sendBoundSwap(pos1:int, pos2:int):
     sendBoundAround(pos1)
-    # if (pos2 >= pos1 - 1 and pos2 <= pos1 + 1):
-    #     pass
-    # else:
-    #     sendBoundTo(pos2)
-    #
-    # if (pos2 + 1 >= pos1 - 1 and pos2 + 1 <= pos1 + 1):
-    #     pass
-    # else:
-    #     sendBoundTo(pos2 + 1)
 
 #add new element in top
 def addToTopK(value: int, name: str, sock : socket.socket):
@@ -377,7 +399,6 @@ def updateTopK(value:int, name : str, s:socket.socket):
         #currentK == k, doesn't effect to top, but effect filters
         if (value < topK[k-1]):
             valueKP1 = value
-            print('top')
             sendBoundTo(k-1)
             sendOneSock(-1, valueKP1, s)
             return
@@ -461,10 +482,10 @@ def updateArg(arg):
                 lstSock.append(sockTop.pop(newK))
             lockTop.release()
             k = newK
-            sendBoundTo(k-1)
-            sendOneSock(-1, valueKP1, tmpSock)
             if (currentK > newK):
                 currentK = newK
+            sendBoundTo(k - 1)
+            sendOneSock(-1, valueKP1, tmpSock)
         elif (newK > k):
             lockTop.acquire()
             valueKP1 = 0
@@ -492,8 +513,6 @@ def workWithNode(s : socket.socket, address):
                 nameNode = str(address) + nameNode
         except socket.error:
             return
-        except Exception:
-            pass
 
         lockLst.acquire()
         lstSock.append(s)
@@ -526,8 +545,6 @@ def workWithNode(s : socket.socket, address):
 
             except socket.error:
                 return
-            except Exception:
-                continue
 
     except socket.error:
         pass
@@ -599,8 +616,11 @@ thMon.start()
 thUser = threading.Thread(target=acceptUser, args=(serverForUser,))
 thUser.start()
 
-#wait for all thread terminate
-thNode.join()
-thMon.join()
-
-thUser.join()
+try:
+    #wait for all thread terminate
+    thNode.join()
+    thMon.join()
+    thUser.join()
+except KeyboardInterrupt:
+    serverForNode.close()
+    serverForUser.close()

@@ -5,10 +5,12 @@ try:
     import Common.MyEnum as MyEnum
     import Common.MyParser as MyParser
     import Common.GetDataFromServer as GetData
+    import Compare.Monitor2.ParseMon2 as ParseMon2
 except ImportError:
     import MyEnum
     import MyParser
     import GetDataFromServer as GetData
+    import ParseMon2
 
 import sys
 import os
@@ -29,17 +31,27 @@ highBound = -1
 ################################################################################
 #read from file config to get information
 def readConfig():
-    global myName, startTime, addName, fileData
-    myName = 'Mon_'
-
-    addName = sys.argv[1]
-    myName = myName + addName
-
+    global myName, addName, fileData, DEBUG, DATA_MODE, IP_SERVER, PORT_NODE, DELTA_TIME, SAMPLE_ON_CIRCLE
+    addName = ''
+    fName = 'config/monConfig'
     try:
-        with open('config' + addName + '.cfg', 'r') as f:
-            myName = f.readline().replace('\n', '')
-    except IOError:
+        addName = sys.argv[1]
+    except Exception:
         pass
+    myName = addName
+
+    fName += str(addName) + '.cfg'
+
+    arg = ParseMon2.readConfig(fName)
+    if (arg == None):
+        return
+    myName = arg.NAME
+    DEBUG = arg.DEBUG
+    DATA_MODE = arg.DATA_MODE
+    IP_SERVER = arg.IP_SERVER
+    PORT_NODE = arg.PORT_NODE
+    DELTA_TIME = arg.DELTA_TIME
+    SAMPLE_ON_CIRCLE = arg.SAMPLE_ON_CIRCLE
 
 #create message to send to server
 def createMessage(strRoot = '', arg = {}):
@@ -154,7 +166,7 @@ def getData():
         line = fileData.readline().replace('\n', '')
         if (line == ''):
             fileData.close()
-            fileData = open('data' + str(addName) + '.dat', 'r')
+            fileData = open('data/data' + str(addName) + '.dat', 'r')
             line = fileData.readline().replace('\n', '')
 
         strData = line.split(' ')
@@ -180,7 +192,7 @@ def monData(sock: socket.socket):
         timeStart = startTime
     elif (DATA_MODE == MyEnum.MonNode.DATA_GEN_AUTO.value):
         global fileData
-        fileData = open('data' + str(addName) + '.dat', 'r')
+        fileData = open('data/data' + str(addName) + '.dat', 'r')
 
     while (not bStop):
         tmpCPU, tmpRAM, tmpMEM = getData()

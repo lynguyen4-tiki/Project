@@ -31,7 +31,7 @@ session = -1
 def readConfig():
     global myName, startTime, addName, fileData, DEBUG, DATA_MODE, IP_SERVER, PORT_NODE, DELTA_TIME, SAMPLE_ON_CIRCLE
     addName = ''
-    fName = 'monConfig'
+    fName = 'config/monConfig'
     try:
         addName = sys.argv[1]
     except Exception:
@@ -50,7 +50,6 @@ def readConfig():
     PORT_NODE = arg.PORT_NODE
     DELTA_TIME = arg.DELTA_TIME
     SAMPLE_ON_CIRCLE = arg.SAMPLE_ON_CIRCLE
-
 
 #create message to send to server
 def createMessage(strRoot = '', arg = {}):
@@ -163,7 +162,7 @@ def getData():
         line = fileData.readline().replace('\n','')
         if (line == ''):
             fileData.close()
-            fileData = open('data' + str(addName) + '.dat', 'r')
+            fileData = open('data/data' + str(addName) + '.dat', 'r')
             line = fileData.readline().replace('\n', '')
 
         strData = line.split(' ')
@@ -194,7 +193,7 @@ def monData(sock: socket.socket):
         timeStart = startTime
     elif (DATA_MODE == MyEnum.MonNode.DATA_GEN_AUTO.value):
         global  fileData
-        fileData = open('data' + str(addName) + '.dat', 'r')
+        fileData = open('data/data' + str(addName) + '.dat', 'r')
 
     while (not bStop):
 

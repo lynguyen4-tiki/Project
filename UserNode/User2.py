@@ -10,7 +10,7 @@ import threading
 import os
 
 IP_SERVER = 'localhost'
-PORT_USER = 7022
+PORT_USER = 7021
 
 HELP = """
 ____________________________________________________________
@@ -48,6 +48,7 @@ def createMessage(strRoot = '', arg = {}):
 
 def inputArgs():
     global sock
+    os.system('clear')
     print('Integrative Function V = h1 * CPU + h2 * RAM + h3 * MEM')
     print('input -1 if ignore the argument:')
     try:
