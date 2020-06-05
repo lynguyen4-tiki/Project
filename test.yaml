@@ -1,0 +1,1353 @@
+openapi: 3.0.0
+# Added by API Auto Mocking Plugin
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/kriviakin/tiki/1.0.0
+info:
+  description: Ad management API
+  version: "1.0.3"
+  title: Ad management API
+  contact:
+    email: krivakin@gmail.com
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+paths:
+  '/keyword/suggest':
+    post:
+      operationId: keywordSuggest
+      description: suggest keywords
+      requestBody:
+        $ref: '#/components/requestBodies/SuggestKeywordsRequest'
+      responses:
+        '204':
+          $ref: "#/components/responses/SuggestedKeywords"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      tags:
+        - Suggest
+
+  '/user/{userID}/role':
+    post:
+      operationId: postRole
+      description: add role for a user
+      summary: add role for a user
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: userID
+          description: user ID in database
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        $ref: '#/components/requestBodies/RoleRequest'
+      responses:
+        '204':
+          description: success
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      tags:
+        - Roles
+
+    delete:
+      operationId: deleteRole
+      description: delete role for user
+      summary: delete role for user
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: userID
+          description: user ID in database
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        $ref: '#/components/requestBodies/RoleRequest'
+      responses:
+        '204':
+          description: success
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      tags:
+        - Roles
+
+  '/token/request':
+    get:
+      operationId: tokenRequest
+      description: request token
+      summary: get a new token
+      responses:
+        200:
+          $ref: "#/components/responses/Token"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      requestBody:
+        $ref: '#/components/requestBodies/TokenRequest'
+      tags:
+        - Token
+
+  '/token/sc/request':
+    get:
+      operationId: tokenSCRequest
+      description: request token for SC
+      summary: get a new token for SC
+      responses:
+        200:
+          $ref: "#/components/responses/Token"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      parameters:
+        - in: header
+          name: Authorization
+          description: tala (seller center) token
+          required: true
+          schema:
+            type: string
+            example: 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.ey'
+        - in: query
+          name: seller_id
+          description: seller_id
+          required: true
+          schema:
+            type: integer
+            example: 875
+      tags:
+        - Token
+
+  '/token/refresh':
+    post:
+      operationId: refreshToken
+      description: refresh token
+      summary: refresh token
+      responses:
+        200:
+          $ref: "#/components/responses/Token"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+      tags:
+        - Token
+
+  '/balance/topup':
+    get:
+      operationId: balanceTopup
+      description: top up user balance
+      summary: top up user balance
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: query
+          name: amount
+          description: amount to top up
+          required: true
+          schema:
+            type: integer
+            example: 1200000
+      responses:
+        '204':
+          description: success
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      tags:
+        - Balance
+
+  /user:
+    post:
+      summary: create a new user
+      operationId: createUser
+      description: Create a new user
+      responses:
+        '201':
+          $ref: "#/components/responses/User"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      requestBody:
+        $ref: '#/components/requestBodies/User'
+      tags:
+        - Users
+
+  '/user/{userID}':
+    get:
+      operationId: getuser
+      description: |
+        Get info about user and its campaigns
+      summary: user information
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: userID
+          description: user ID in database
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Order"
+      responses:
+        '200':
+          description: user information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      info:
+                        type: object
+                        properties:
+                          balance:
+                            type: number
+                            example: 1000000.17
+                          statistics:
+                            $ref: '#/components/schemas/Statistics'
+                          total_topup:
+                            type: number
+                            example: 99999999.17
+                          total_spending:
+                            type: number
+                            example: 99999.17
+                          active_campaigns:
+                            type: number
+                            example: 79
+                          total_impressions:
+                            type: number
+                            example: 35
+                          total_clicks:
+                            type: number
+                            example: 18
+                          first_campaign_created_at:
+                            type: time
+                            example: "2020-04-24T00:00:00+07:00"
+                          last_ad_impression_date:
+                            type: time
+                            example: "2020-05-19T00:00:00Z"
+                      campaigns:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Business'
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      tags:
+        - Users
+
+  /business:
+    post:
+      summary: create a new business
+      operationId: createBusiness
+      description: Create a new business
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+      responses:
+        '201':
+          $ref: "#/components/responses/Business"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      requestBody:
+        $ref: '#/components/requestBodies/Business'
+      tags:
+        - Businesses
+
+  '/business/{businessID}':
+    get:
+      operationId: getbusiness
+      description: |
+        Get info about business and its campaigns
+      summary: business information
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: businessID
+          description: business ID in database
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Order"
+      responses:
+        '200':
+          description: user information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      info:
+                        type: object
+                        properties:
+                          balance:
+                            type: number
+                            example: 1000000.17
+                          statistics:
+                            $ref: '#/components/schemas/Statistics'
+                      campaigns:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Campaign'
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      tags:
+        - Businesses
+
+  '/campaign/{campaignID}':
+    get:
+      operationId: getCampaign
+      description: |
+        Returns information about campaign
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: campaignID
+          description: campaign ID in database
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Order"
+      responses:
+        '200':
+          description: campaign information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      info:
+                        $ref: '#/components/schemas/Campaign'
+                      adgroups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AdGroup'
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      summary: campaign
+      tags:
+        - Campaigns
+    patch:
+      operationId: updateCampaign
+      description: |
+        Update campaign
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: campaignID
+          description: campaign ID in database
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        $ref: '#/components/requestBodies/Campaign'
+      responses:
+        '200':
+          $ref: "#/components/responses/Campaign"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      summary: update campaign
+      tags:
+        - Campaigns
+  /campaign:
+    post:
+      summary: create a new campaign
+      operationId: createCampaign
+      description: Create a new campaign
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+      responses:
+        '201':
+          $ref: "#/components/responses/Campaign"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      requestBody:
+        $ref: '#/components/requestBodies/Campaign'
+      tags:
+        - Campaigns
+
+  /campaign/auto:
+    post:
+      summary: create a new campaign
+      operationId: createAutoCampaign
+      description: Create a new auto campaign
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+      responses:
+        '201':
+          $ref: "#/components/responses/Campaign"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      requestBody:
+        $ref: '#/components/requestBodies/CampaignAuto'
+      tags:
+        - Campaigns
+
+  '/adgroup/{adGroupID}':
+    get:
+      operationId: getAdGroup
+      description: |
+        Returns information about ad group
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: adGroupID
+          description: ad group ID in database
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Order"
+      responses:
+        '200':
+          description: ad group information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      info:
+                        $ref: '#/components/schemas/AdGroup'
+                      adverts:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Advert'
+                      matches:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Match'
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      summary: ad group
+      tags:
+        - AdGroups
+    patch:
+      operationId: updateAdGroups
+      description: |
+        Update ad group
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: adGroupID
+          description: ad group ID in database
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        $ref: '#/components/requestBodies/AdGroup'
+      responses:
+        '200':
+          $ref: "#/components/responses/AdGroup"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      summary: update ad group
+      tags:
+        - AdGroups
+
+  /adgroup:
+    post:
+      summary: create a new ad group
+      operationId: createAdGroup
+      description: Create a new ad group
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+      responses:
+        '201':
+          $ref: "#/components/responses/AdGroup"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      requestBody:
+        $ref: '#/components/requestBodies/AdGroup'
+      tags:
+        - AdGroups
+
+  '/advert/{advertID}':
+    get:
+      operationId: getAdvert
+      description: |
+        Returns information about advert
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: advertID
+          description: advert ID in database
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Order"
+      responses:
+        '200':
+          description: advert information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      info:
+                        $ref: '#/components/schemas/Advert'
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      summary: advert
+      tags:
+        - Adverts
+
+    patch:
+      operationId: updateAdvert
+      description: |
+        Update advert
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: advertID
+          description: advert ID in database
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        $ref: '#/components/requestBodies/Advert'
+      responses:
+        '200':
+          $ref: "#/components/responses/Advert"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      summary: update advert
+      tags:
+        - Adverts
+
+  /advert:
+    post:
+      summary: create a new advert
+      operationId: createAdvert
+      description: Create a new advert
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+      responses:
+        '201':
+          $ref: "#/components/responses/Advert"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      requestBody:
+        $ref: '#/components/requestBodies/Advert'
+      tags:
+        - Adverts
+
+  '/match/{matchID}':
+    get:
+      operationId: getMatch
+      description: |
+        Returns information about match
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: matchID
+          description: match ID in database
+          required: true
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Order"
+      responses:
+        '200':
+          description: match information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      info:
+                        $ref: '#/components/schemas/Match'
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      summary: match
+      tags:
+        - Matches
+    patch:
+      operationId: updateMatch
+      description: |
+        Update match
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+        - in: path
+          name: matchID
+          description: match ID in database
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        $ref: '#/components/requestBodies/Match'
+      responses:
+        '200':
+          $ref: "#/components/responses/Match"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+        '404':
+          $ref: "#/components/responses/HTTP404"
+      summary: update match
+      tags:
+        - Matches
+
+  /match:
+    post:
+      summary: create a new match
+      operationId: createMatch
+      description: Create a new match
+      parameters:
+        - $ref: "#/components/parameters/ADToken"
+      responses:
+        '201':
+          $ref: "#/components/responses/Match"
+        '400':
+          $ref: "#/components/responses/HTTP400"
+        '403':
+          $ref: "#/components/responses/HTTP403"
+      requestBody:
+        $ref: '#/components/requestBodies/Match'
+      tags:
+        - Matches
+
+
+components:
+  parameters:
+    ADToken:
+      in: header
+      name: Authorization
+      description: admin portal token
+      required: true
+      schema:
+        type: string
+        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ'
+    From:
+      in: query
+      name: from
+      description: start date (inclusive)
+      required: false
+      schema:
+        type: string
+        format: date
+        example: '2017-07-21'
+    To:
+      in: query
+      name: to
+      description: end date (inclusive)
+      required: false
+      schema:
+        type: string
+        format: date
+        example: '2017-07-24'
+    Sort:
+      in: query
+      name: to
+      description: field to sort by
+      required: false
+      schema:
+        type: string
+        enum:
+          - clicks
+          - shows
+          - spending
+        example: 'clicks'
+    Order:
+      in: query
+      name: to
+      description: order to sort
+      required: false
+      schema:
+        type: string
+        enum:
+          - desc
+          - asc
+        example: 'asc'
+  schemas:
+    Statistics:
+      type: object
+      readOnly: true
+      properties:
+        total:
+          $ref: '#/components/schemas/SingleStat'
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/SingleDayStat'
+
+    SingleStat:
+      type: object
+      properties:
+        shows:
+          type: integer
+          example: 1000
+        clicks:
+          type: integer
+          example: 50
+        spending:
+          type: number
+          example: 110000.17
+    SingleDayStat:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2017-07-24'
+        shows:
+          type: integer
+          example: 1000
+        clicks:
+          type: integer
+          example: 50
+        spending:
+          type: number
+          example: 110000.17
+    Status:
+      type: string
+      enum:
+        - ACTIVE
+        - PAUSED
+        - DELETED
+      example: ACTIVE
+
+    CreatedAt:
+      type: string
+      format: date-time
+      readOnly: true
+      example: '2017-07-21T17:32:28Z'
+
+    ID:
+      type: integer
+      readOnly: true
+      example: 1
+
+    FK:
+      type: integer
+      example: 1
+
+    Error:
+      type: object
+      properties:
+        msg:
+          type: string
+          example: 'text error description'
+
+    FrequencyCapping:
+      type: object
+      properties:
+        type:
+          type: string
+          example: 'show'
+          description: 'show | click'
+        amount:
+          type: integer
+          example: 10
+        period:
+          type: integer
+          example: 7
+          description: 'num days'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+
+    SuggestedKeywords:
+      type: object
+      properties:
+        product_id:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 32895306
+              keywords:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuggestedBid'
+
+
+    Token:
+      type: object
+      properties:
+        token:
+          type: string
+          example: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMxNiwi'
+        ttl:
+          type: integer
+          example: 86400
+
+    UserOnly:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ID'
+        email:
+          type: string
+          format: email
+          example: 'user@tiki.vn'
+
+    UserOnlyWithPass:
+      allOf:
+        - $ref: '#/components/schemas/UserOnly'
+        - type: object
+          properties:
+            password:
+              type: string
+              format: password
+              example: '111111'
+
+    BusinessOnly:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ID'
+        name:
+          type: string
+          example: 'Pepsi'
+        user_id:
+          description: user who owns the new business
+          type: integer
+          example: 1
+
+    CampaignOnly:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ID'
+        user_id:
+          $ref: '#/components/schemas/FK'
+        type:
+          type: string
+          enum:
+            - PRODUCT
+            - BRAND
+          example: PRODUCT
+        name:
+          type: string
+          example: 'test PRODUCT ad campaign'
+        time_created_at:
+          $ref: '#/components/schemas/CreatedAt'
+        status:
+          $ref: '#/components/schemas/Status'
+        budget:
+          type: number
+          example: 5400000
+        start_date:
+          type: string
+          format: date
+          example: '2017-07-21'
+        end_date:
+          type: string
+          format: date
+          example: '2017-07-21'
+        frequency_capping:
+          properties:
+            type:
+              type: string
+              enum:
+                - IMPRESSION
+                - CLICK
+              example: IMPRESSION
+            amount:
+              type: integer
+              example: 5
+            period:
+              type: integer
+              minimum: 1
+              maximum: 30
+              example: 7
+
+    Business:
+      allOf:
+        - $ref: '#/components/schemas/BusinessOnly'
+        - type: object
+          properties:
+            balance:
+              type: number
+              example: 1000000.17
+            statistics:
+              $ref: '#/components/schemas/Statistics'
+
+    Campaign:
+      allOf:
+        - $ref: '#/components/schemas/CampaignOnly'
+        - type: object
+          properties:
+            statistics:
+              $ref: '#/components/schemas/Statistics'
+
+    AdGroupOnly:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ID'
+        campaign_id:
+          $ref: '#/components/schemas/FK'
+        name:
+          type: string
+          example: 'test ad group #1'
+        time_created_at:
+          $ref: '#/components/schemas/CreatedAt'
+        status:
+          $ref: '#/components/schemas/Status'
+        categories:
+          type: array
+          items:
+            type: integer
+            example:
+              - 1234
+              - 3456
+        targeting:
+          type: object
+          properties:
+            gender:
+              type: string
+              enum:
+                - ANY
+                - MALE
+                - FEMALE
+              example: MALE
+            age:
+              type: object
+              properties:
+                low:
+                  type: integer
+                  example: 18
+                high:
+                  type: integer
+                  example: 24
+            geo:
+              type: array
+              items:
+                type: string
+                example: VN111000000
+            devices:
+              type: array
+              items:
+                type: string
+                enum:
+                  - DWEB
+                  - MWEB
+                  - ANDROID
+                  - IOS
+
+    AdGroup:
+      allOf:
+        - $ref: '#/components/schemas/AdGroupOnly'
+        - type: object
+          properties:
+            statistics:
+              $ref: '#/components/schemas/Statistics'
+
+    AdvertOnly:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ID'
+        ad_group_id:
+          $ref: '#/components/schemas/FK'
+        time_created_at:
+          $ref: '#/components/schemas/CreatedAt'
+        type_id:
+          type: integer
+          example: 1
+        status:
+          $ref: '#/components/schemas/Status'
+        content:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/AdvertContentProduct'
+            - $ref: '#/components/schemas/AdvertContentBrand'
+        frequency_capping:
+          $ref: '#/components/schemas/FrequencyCapping'
+
+    Advert:
+      allOf:
+        - $ref: '#/components/schemas/AdvertOnly'
+        - type: object
+          properties:
+            statistics:
+              $ref: '#/components/schemas/Statistics'
+
+    AdvertContentProduct:
+      type: object
+      properties:
+        sku:
+          type: string
+          example: 'SKU-01234'
+
+    AdvertContentBrand:
+      type: object
+      properties:
+        banner:
+          type: string
+          example: '/img/banner.jpg'
+
+    MatchOnly:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ID'
+        ad_group_id:
+          $ref: '#/components/schemas/FK'
+        time_created_at:
+          $ref: '#/components/schemas/CreatedAt'
+        type_id:
+          type: integer
+          example: 1
+        status:
+          $ref: '#/components/schemas/Status'
+        bid:
+          type: integer
+          example: 1200
+        targeting:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/MatchTargetingKeyword'
+            - $ref: '#/components/schemas/MatchTargetingCategory'
+
+    SuggestedBid:
+      type: object
+      properties:
+        high:
+          type: integer
+          example: 1200
+        low:
+          type: integer
+          example: 600
+        keyword:
+          type: string
+          example: iphone
+
+    Match:
+      allOf:
+        - $ref: '#/components/schemas/MatchOnly'
+        - type: object
+          properties:
+            statistics:
+              $ref: '#/components/schemas/Statistics'
+            suggested_big:
+              $ref: '#/components/schemas/SuggestedBid'
+
+    MatchTargetingKeyword:
+      type: object
+      properties:
+        keyword:
+          type: string
+          example: 'iphone 10'
+        type:
+          type: string
+          enum:
+            - phrase
+            - broad
+            - exact
+          example: phrase
+    MatchTargetingCategory:
+      type: object
+      properties:
+        category:
+          type: integer
+          example: 1234
+
+  requestBodies:
+    SuggestKeywordsRequest:
+      content:
+        application/json:
+          schema:
+            properties:
+              product_id:
+                type: array
+                items:
+                  type: integer
+                  example:
+                    - 32895306
+                    - 13797246
+
+    RoleRequest:
+      content:
+        application/json:
+          schema:
+            properties:
+              domain:
+                type: string
+                example: '*'
+              role:
+                type: string
+                example: 'support'
+    TokenRequest:
+      content:
+        application/json:
+          schema:
+            properties:
+              email:
+                type: string
+                format: email
+                example: 'user@tiki.vn'
+              password:
+                type: string
+                format: password
+                example: '111111'
+    User:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UserOnlyWithPass'
+      description: User to create
+
+    Business:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BusinessOnly'
+      description: Business to create
+
+    Campaign:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Campaign'
+      description: Campaign to create
+
+    CampaignAuto:
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Campaign'
+              - type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      type: integer
+                      example: 42
+      description: Campaign to create
+
+    AdGroup:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AdGroup'
+      description: Ad group to create
+
+    Advert:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Advert'
+      description: Advert to create
+
+    Match:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Match'
+      description: Match to create
+
+  responses:
+    HTTP400:
+      description: bad input parameter
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    HTTP403:
+      description: forbiden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    HTTP404:
+      description: id not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    SuggestedKeywords:
+      description: success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/components/schemas/SuggestedKeywords'
+
+    Token:
+      description: success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/components/schemas/Token'
+
+    User:
+      description: success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/components/schemas/UserOnly'
+
+    Business:
+      description: success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/components/schemas/BusinessOnly'
+
+    AdGroup:
+      description: success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/components/schemas/AdGroupOnly'
+
+    Campaign:
+      description: success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/components/schemas/CampaignOnly'
+
+    Advert:
+      description: success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/components/schemas/AdvertOnly'
+
+    Match:
+      description: success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: '#/components/schemas/MatchOnly'
+
+
+tags:
+  - name: Suggest
+  - name: Roles
+  - name: Token
+  - name: Balance
+  - name: Users
+  - name: Businesses
+  - name: Campaigns
+  - name: AdGroups
+  - name: Adverts
+  - name: Matches
